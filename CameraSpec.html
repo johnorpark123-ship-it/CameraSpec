@@ -404,8 +404,12 @@
         }
 
         function saveToFirebase() {
-            set(ref(db, 'camera_spec_ledger_v3'), cameraSpecs).catch(err => console.error(err));
-        }
+    // 데이터가 50개를 초과하는 경우, 최신 50개(앞에서부터 50개)만 남기고 나머지 오래된 데이터는 자동 삭제
+    if (cameraSpecs.length > 50) {
+        cameraSpecs = cameraSpecs.slice(0, 50);
+    }
+    set(ref(db, 'camera_spec_ledger_v3'), cameraSpecs).catch(err => console.error(err));
+}
 
         function saveColumnsToFirebase() {
             set(ref(db, 'camera_spec_columns_v3'), keysList).catch(err => console.error(err));

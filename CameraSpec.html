@@ -130,10 +130,15 @@
                         <span>카메라 지원 스펙 메트릭스</span>
                         <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium hidden sm:inline-block">실시간 클라우드 연동</span>
                     </h1>
-                    <p class="text-xs text-slate-500">데이터 실시간 공유 & 개인별 독립 검색·정렬·필터 지원</p>
+                    <p class="text-xs text-slate-500">데이터 실시간 공유 & 개인별 독립 검색·정렬·필터 지원 (최대 50개 유지)</p>
                 </div>
             </div>
             <div class="flex items-center space-x-2 flex-wrap">
+                <!-- Onboarding Portal Navigation Button -->
+                <a href="https://jeshu111.github.io/zesq-s2-onboarding/" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="S2팀 신입사원 온보딩 포털로 이동">
+                    <i class="fa-solid fa-house-laptop"></i>
+                    <span>온보딩 포털</span>
+                </a>
                 <!-- Excel Template Download Button -->
                 <button onclick="downloadExcelTemplate()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="업로드용 엑셀 빈 양식 다운로드">
                     <i class="fa-solid fa-file-arrow-down"></i>
@@ -347,7 +352,6 @@
 
         let draggedColumnIndex = null;
         
-        // 검색, 필터, 정렬 상태값은 클라우드 공유 대상에서 제외하고 각 브라우저의 독립 메모리로 분리
         let currentSortColumn = null;
         let sortDirection = 'asc';
         let multiSelectedFilters = [];
@@ -384,7 +388,6 @@
                 renderTable();
             });
 
-            // 스크롤 동기화 연동
             const bodyContainer = document.getElementById('scrollable-body-container');
             const headerContainer = document.getElementById('sticky-header-container');
             bodyContainer.addEventListener('scroll', () => {
@@ -404,12 +407,11 @@
         }
 
         function saveToFirebase() {
-    // 데이터가 50개를 초과하는 경우, 최신 50개(앞에서부터 50개)만 남기고 나머지 오래된 데이터는 자동 삭제
-    if (cameraSpecs.length > 50) {
-        cameraSpecs = cameraSpecs.slice(0, 50);
-    }
-    set(ref(db, 'camera_spec_ledger_v3'), cameraSpecs).catch(err => console.error(err));
-}
+            if (cameraSpecs.length > 50) {
+                cameraSpecs = cameraSpecs.slice(0, 50);
+            }
+            set(ref(db, 'camera_spec_ledger_v3'), cameraSpecs).catch(err => console.error(err));
+        }
 
         function saveColumnsToFirebase() {
             set(ref(db, 'camera_spec_columns_v3'), keysList).catch(err => console.error(err));

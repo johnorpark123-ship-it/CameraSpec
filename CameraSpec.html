@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>카메라 지원 스펙 매트릭스</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- SheetJS (xlsx) for Excel Export/Import -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* 테이블 셀 공통 고정 너비 및 스타일 규격 완벽 통일 */
+        .spec-table {
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+        .spec-table th, .spec-table td {
+            border: 1px solid #cbd5e1;
+            padding: 8px 10px;
+            text-align: center;
+            font-size: 13px;
+        }
+        .spec-table th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: #334155;
+            white-space: normal; /* 컬럼명은 말줄임 없이 전체 표시 */
+            word-break: break-word;
+        }
+        .spec-table tr:hover td {
+            background-color: #f1f5f9;
+        }
+
+        /* 각 컬럼별 고정 너비 할당 */
+        .col-group { width: 120px; min-width: 120px; max-width: 120px; }
+        .col-model { width: 160px; min-width: 160px; max-width: 160px; }
+        .col-sq { width: 110px; min-width: 110px; max-width: 110px; }
+        .col-hq { width: 120px; min-width: 120px; max-width: 120px; }
+        .col-ratio { width: 70px; min-width: 70px; max-width: 70px; }
+        .col-comment { width: 180px; min-width: 180px; max-width: 180px; }
+        .col-ai { width: 100px; min-width: 100px; max-width: 100px; }
+        .col-feature { width: 110px; min-width: 110px; max-width: 110px; }
+        .col-manage { width: 110px; min-width: 110px; max-width: 110px; }
+
+        /* 말풍선 툴팁 스타일 (상위 컨테이너 구조 개선 및 overflow 제약 극복) */
+        .tooltip-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+        .tooltip-content {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            width: 100%;
+            cursor: pointer;
+        }
+        .tooltip-bubble {
+            visibility: hidden;
+            width: 280px;
+            background-color: #1e293b;
+            color: #fff;
+            text-align: left;
+            border-radius: 8px;
+            padding: 10px 14px;
+            position: fixed;
+            z-index: 99999;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            white-space: pre-wrap;
+            font-size: 11px;
+            line-height: 1.4;
+            box-shadow: 0 10px 20px -3px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+        }
+        .tooltip-wrapper:hover .tooltip-bubble {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* 드래그 앤 드롭 스타일 */
+        .draggable-item {
+            cursor: grab;
+        }
+        .draggable-item:active {
+            cursor: grabbing;
+        }
+        .draggable-item.dragging {
+            opacity: 0.4;
+            background: #e2e8f0;
+        }
+
+        /* 드롭다운 셀 여백 확보 및 화살표 겹침 방지 */
+        .matrix-select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 6px center;
+            background-size: 12px;
+            padding-right: 22px;
+            padding-left: 2px;
+            text-align-last: center;
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-full flex flex-col antialiased selection:bg-emerald-600 selection:text-white">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm shrink-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-emerald-600 text-white p-2.5 rounded-xl shadow-md flex items-center justify-center">
+                    <i class="fa-solid fa-video text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-base sm:text-lg text-slate-950 tracking-tight flex items-center space-x-2">
+                        <span>카메라 지원 스펙 메트릭스</span>
+                        <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium hidden sm:inline-block">실시간 클라우드 연동</span>
+                    </h1>
+                    <p class="text-xs text-slate-500">엑셀 템플릿, 내보내기/가져오기, 통합 컬럼 관리, 정렬 및 변경이력 탑재</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 flex-wrap">
+                <!-- Excel Template Download Button -->
+                <button onclick="downloadExcelTemplate()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="업로드용 엑셀 빈 양식 다운로드">
+                    <i class="fa-solid fa-file-arrow-down"></i>
+                    <span>양식 다운로드</span>
+                </button>
+                <!-- Excel Export & Import Buttons -->
+                <button onclick="exportToExcel()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="현재 표를 엑셀로 다운로드">
+                    <i class="fa-solid fa-file-excel"></i>
+                    <span>엑셀 다운</span>
+                </button>
+                <label class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5 cursor-pointer">
+                    <i class="fa-solid fa-file-arrow-up"></i>
+                    <span>엑셀 업로드</span>
+                    <input type="file" id="excel-file-input" accept=".xlsx, .xls" onchange="importFromExcel(event)" class="hidden">
+                </label>
+                <button onclick="openHistoryModal()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="변경 이력 로그 보기">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>변경 이력</span>
+                </button>
+                <button onclick="openColumnManagerModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-columns"></i>
+                    <span>컬럼 관리</span>
+                </button>
+                <button onclick="openAddModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 sm:px-4 py-2 rounded-lg shadow-sm transition flex items-center space-x-2">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>카메라 추가</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-full w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col space-y-4 overflow-hidden">
+        
+        <!-- Search and Multi-Filter Toolbar -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-4 items-center justify-between shrink-0">
+            <div class="w-full lg:w-[420px] relative">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+                <input type="text" id="search-input" oninput="renderTable()" placeholder="모델명, 코멘트 검색 또는 기능명 입력 시 O 항목 필터..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+            </div>
+            
+            <div class="flex items-center space-x-4 w-full lg:w-auto justify-between lg:justify-end flex-wrap gap-2">
+                <!-- Multi-Filter Dropdown Trigger -->
+                <div class="relative">
+                    <button onclick="toggleFilterDropdown()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 flex items-center space-x-2 transition">
+                        <i class="fa-solid fa-filter text-emerald-600"></i>
+                        <span>다중 기능 필터</span>
+                        <span id="filter-badge" class="bg-emerald-600 text-white rounded-full px-1.5 py-0.2 text-[10px] hidden">0</span>
+                    </button>
+                    <!-- Filter Dropdown Menu -->
+                    <div id="filter-dropdown" class="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-40 hidden space-y-3">
+                        <div class="flex items-center justify-between border-b pb-2">
+                            <span class="text-xs font-bold text-slate-800">동시 지원(O) 요구 기능 선택</span>
+                            <button onclick="clearMultiFilters()" class="text-[11px] text-rose-500 hover:underline">초기화</button>
+                        </div>
+                        <div id="multi-filter-checkboxes" class="max-h-48 overflow-y-auto space-y-1.5 text-xs pr-1">
+                            <!-- Dynamic checkboxes -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-xs text-slate-500 flex items-center space-x-2">
+                    <span class="inline-block px-1.5 py-0.5 bg-[#d1fae5] border border-emerald-300 rounded text-emerald-800 font-bold">O</span><span>지원</span>
+                    <span class="inline-block px-1.5 py-0.5 bg-[#cbd5e1] border border-slate-400 rounded text-slate-700 font-bold">X</span><span>미지원</span>
+                    <span class="inline-block px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-slate-500 font-bold">-</span><span>미선택</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Matrix Container with Separated Sticky Header & Scrollable Body -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden">
+            <!-- 1. 고정 헤더 영역 (가로 스크롤 동기화) -->
+            <div class="overflow-x-hidden border-b border-slate-200 bg-[#f8fafc] shrink-0" id="sticky-header-container">
+                <table class="spec-table" id="header-table">
+                    <thead id="spec-table-head">
+                        <!-- Dynamic Header -->
+                    </thead>
+                </table>
+            </div>
+
+            <!-- 2. 스크롤 가능한 바디 영역 -->
+            <div class="overflow-auto flex-1" id="scrollable-body-container">
+                <table class="spec-table" id="body-table">
+                    <tbody id="spec-table-body">
+                        <!-- Dynamic Rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Camera Add/Edit Modal -->
+    <div id="spec-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base" id="modal-title">카메라 추가</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="handleFormSubmit(event)" class="space-y-3">
+                <input type="hidden" id="edit-index">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">시리즈</label>
+                        <input type="text" id="f-group" placeholder="예: T 시리즈" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">모델명</label>
+                        <input type="text" id="f-model" required placeholder="예: TNV-C7013RC(X AI)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">REC_SQ 해상도</label>
+                        <input type="text" id="f-fw" placeholder="예: 1280*960" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">REC_HQ Max 해상도</label>
+                        <input type="text" id="f-res" placeholder="예: 1920*1080" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Ratio</label>
+                        <input type="text" id="f-ratio" placeholder="예: 16:9" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Comment</label>
+                    <textarea id="f-comment" rows="2" placeholder="특이사항 및 코멘트 입력" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">AI</label>
+                        <input type="text" id="f-ai" value="Built-in AI" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-3">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">취소</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition">저장하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Column Manager Modal with Drag & Drop Reordering -->
+    <div id="column-manager-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-100">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base">지원 기능 컬럼 관리</h3>
+                <button onclick="closeColumnManagerModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-xs text-slate-500">항목을 드래그하여 순서를 바꾸거나 새로운 기능 컬럼을 추가할 수 있습니다.</p>
+                <div class="flex space-x-2">
+                    <input type="text" id="new-column-name" placeholder="새 기능 이름 (예: HDR 등)" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <button onclick="addNewColumn()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition">추가</button>
+                </div>
+                <div class="border rounded-xl p-3 max-h-60 overflow-y-auto space-y-2 bg-slate-50" id="column-list-container">
+                    <!-- Dynamic column reorder list -->
+                </div>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button onclick="closeColumnManagerModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Log Modal -->
+    <div id="history-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4 border border-slate-100">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                    <i class="fa-solid fa-clock-rotate-left text-amber-600"></i>
+                    <span>변경 이력(History) 로그</span>
+                </h3>
+                <button onclick="closeHistoryModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="max-h-72 overflow-y-auto space-y-2 text-xs divide-y divide-slate-100 bg-slate-50 p-3 rounded-xl border" id="history-list-container">
+                <!-- History items -->
+            </div>
+            <div class="flex justify-end pt-2">
+                <button onclick="closeHistoryModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            	apiKey: "AIzaSyBANvp_Se4n59yHcT9JvXyE-KN7cRIz_Go",
+  		authDomain: "sd-asset-manager.firebaseapp.com",
+  		databaseURL: "https://sd-asset-manager-default-rtdb.firebaseio.com",
+  		projectId: "sd-asset-manager",
+ 		storageBucket: "sd-asset-manager.firebasestorage.app",
+  		messagingSenderId: "568250820087",
+  		appId: "1:568250820087:web:8f6dd508ec9421b1673af2",
+  		measurementId: "G-W8WEJ04501"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let cameraSpecs = [];
+        let historyLogs = [];
+        
+        // 컬럼 정의 (모든 기능 항목을 통합 "지원 기능" 헤더 아래로 구성)
+        let keysList = [
+            "BLC", "HLC", "WDR", "Motion", "Shock", "Tampering", "Defocus", 
+            "Fog", "Audio", "Sound classification", "Face", "Person", "Vehicle", "License plate", "IVA"
+        ];
+
+        let draggedColumnIndex = null;
+        let currentSortColumn = null;
+        let sortDirection = 'asc'; // 'asc' or 'desc'
+        let multiSelectedFilters = [];
+
+        window.onload = function() {
+            const dbRef = ref(db, 'camera_spec_ledger_v3');
+            const colsRef = ref(db, 'camera_spec_columns_v3');
+            const historyRef = ref(db, 'camera_spec_history_v3');
+
+            onValue(colsRef, (snapshot) => {
+                const colsData = snapshot.val();
+                if (colsData !== null && Array.isArray(colsData)) {
+                    keysList = colsData;
+                }
+                renderTableHead();
+                updateTableWidths();
+                renderMultiFilterCheckboxes();
+            });
+
+            onValue(historyRef, (snapshot) => {
+                const hData = snapshot.val();
+                if (hData !== null && Array.isArray(hData)) {
+                    historyLogs = hData;
+                }
+            });
+
+            onValue(dbRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data !== null) {
+                    cameraSpecs = Array.isArray(data) ? data : [];
+                } else {
+                    cameraSpecs = [];
+                }
+                renderTable();
+            });
+
+            // 스크롤 동기화 연동
+            const bodyContainer = document.getElementById('scrollable-body-container');
+            const headerContainer = document.getElementById('sticky-header-container');
+            bodyContainer.addEventListener('scroll', () => {
+                headerContainer.scrollLeft = bodyContainer.scrollLeft;
+            });
+        };
+
+        function updateTableWidths() {
+            const baseWidth = 120 + 160 + 110 + 120 + 70 + 180 + 100 + 110;
+            const featureWidth = keysList.length * 110;
+            const totalWidth = baseWidth + featureWidth;
+
+            const headerTable = document.getElementById('header-table');
+            const bodyTable = document.getElementById('body-table');
+            if (headerTable) headerTable.style.width = totalWidth + 'px';
+            if (bodyTable) bodyTable.style.width = totalWidth + 'px';
+        }
+
+        function saveToFirebase() {
+            set(ref(db, 'camera_spec_ledger_v3'), cameraSpecs).catch(err => console.error(err));
+        }
+
+        function saveColumnsToFirebase() {
+            set(ref(db, 'camera_spec_columns_v3'), keysList).catch(err => console.error(err));
+        }
+
+        function logHistory(action, targetModel) {
+            const now = new Date().toLocaleString();
+            const logEntry = {
+                time: now,
+                user: "관리자(Admin)",
+                action: action,
+                model: targetModel
+            };
+            historyLogs.unshift(logEntry);
+            if (historyLogs.length > 50) historyLogs.pop();
+            set(ref(db, 'camera_spec_history_v3'), historyLogs).catch(err => console.error(err));
+        }
+
+        // 헤더 렌더링 (통합 "지원 기능" 2단 헤더 구성 + 정렬 버튼 포함)
+        window.renderTableHead = function() {
+            updateTableWidths();
+            const thead = document.getElementById('spec-table-head');
+
+            thead.innerHTML = `
+                <tr>
+                    <th rowspan="2" class="col-group cursor-pointer hover:bg-slate-100" onclick="sortData('group')">구분 <i class="fa-solid fa-sort text-[10px] text-slate-400"></i></th>
+                    <th rowspan="2" class="col-model cursor-pointer hover:bg-slate-100" onclick="sortData('model')">모델명 <i class="fa-solid fa-sort text-[10px] text-slate-400"></i></th>
+                    <th rowspan="2" class="col-sq cursor-pointer hover:bg-slate-100" onclick="sortData('fw')">REC_SQ 해상도 <i class="fa-solid fa-sort text-[10px] text-slate-400"></i></th>
+                    <th rowspan="2" class="col-hq cursor-pointer hover:bg-slate-100" onclick="sortData('res')">REC_HQ Max 해상도 <i class="fa-solid fa-sort text-[10px] text-slate-400"></i></th>
+                    <th rowspan="2" class="col-ratio cursor-pointer hover:bg-slate-100" onclick="sortData('ratio')">Ratio <i class="fa-solid fa-sort text-[10px] text-slate-400"></i></th>
+                    <th rowspan="2" class="col-comment">Comment</th>
+                    <th rowspan="2" class="col-ai cursor-pointer hover:bg-slate-100" onclick="sortData('ai')">AI <i class="fa-solid fa-sort text-[10px] text-slate-400"></i></th>
+                    <th colspan="${keysList.length}" class="bg-emerald-50 text-emerald-900 border-b border-emerald-200 text-xs font-bold py-1.5">지원 기능</th>
+                    <th rowspan="2" class="col-manage">관리</th>
+                </tr>
+                <tr id="sub-header-row"></tr>
+            `;
+
+            const subRow = document.getElementById('sub-header-row');
+            keysList.forEach(k => {
+                let th = document.createElement('th');
+                th.className = 'col-feature cursor-pointer hover:bg-slate-100';
+                th.innerHTML = `${k} <i class="fa-solid fa-sort text-[9px] text-slate-400"></i>`;
+                th.onclick = () => sortData(k);
+                subRow.appendChild(th);
+            });
+        };
+
+        // 컬럼별 정렬 기능 (대소문자 무시 지원)
+        window.sortData = function(key) {
+            if (currentSortColumn === key) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortColumn = key;
+                sortDirection = 'asc';
+            }
+
+            cameraSpecs.sort((a, b) => {
+                let valA = '', valB = '';
+                if (['group', 'model', 'fw', 'res', 'ratio', 'ai', 'comment'].includes(key)) {
+                    valA = (a[key] || '').toLowerCase();
+                    valB = (b[key] || '').toLowerCase();
+                } else {
+                    valA = (a.features && a.features[key]) || '-';
+                    valB = (b.features && b.features[key]) || '-';
+                }
+
+                if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            renderTable();
+        };
+
+        window.renderTable = function() {
+            renderTableHead();
+            const tbody = document.getElementById('spec-table-body');
+            const rawSearchQuery = document.getElementById('search-input').value.trim();
+            const searchQuery = rawSearchQuery.toLowerCase();
+            tbody.innerHTML = '';
+
+            const filtered = cameraSpecs.filter(item => {
+                const text = `${item.group} ${item.model} ${item.fw} ${item.comment} ${item.res}`.toLowerCase();
+                
+                // 1. 일반 검색바 필터 (대소문자 무시 및 기능명 부분 일치 지원)
+                let matchesSearch = true;
+                if (searchQuery) {
+                    const matchedCol = keysList.find(k => k.toLowerCase().includes(searchQuery));
+                    if (matchedCol) {
+                        matchesSearch = (item.features && item.features[matchedCol] === 'O') || text.includes(searchQuery);
+                    } else {
+                        matchesSearch = text.includes(searchQuery);
+                    }
+                }
+
+                // 2. 다중 기능 체크박스 필터 (선택된 모든 기능이 'O'여야 함)
+                let matchesMultiFilter = true;
+                if (multiSelectedFilters.length > 0) {
+                    matchesMultiFilter = multiSelectedFilters.every(fKey => {
+                        return item.features && item.features[fKey] === 'O';
+                    });
+                }
+
+                return matchesSearch && matchesMultiFilter;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${7 + keysList.length + 1}" class="p-8 text-center text-slate-400">조건에 일치하는 카메라 스펙이 없습니다.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach((item) => {
+                let actualIndex = cameraSpecs.indexOf(item);
+                let tr = document.createElement('tr');
+                let commentText = (item.comment || '').replace(/<br>/g, '\n');
+
+                let html = `
+                    <td class="col-group font-medium bg-slate-50/50">${item.group || ''}</td>
+                    <td class="col-model font-bold text-slate-900">${item.model || ''}</td>
+                    <td class="col-sq">${item.fw || ''}</td>
+                    <td class="col-hq text-xs leading-tight">${item.res || ''}</td>
+                    <td class="col-ratio">${item.ratio || ''}</td>
+                    <td class="col-comment text-left text-xs">
+                        <div class="tooltip-wrapper" onmouseenter="positionTooltip(event)">
+                            <span class="tooltip-content">${commentText || '-'}</span>
+                            <div class="tooltip-bubble">${commentText || '코멘트 없음'}</div>
+                        </div>
+                    </td>
+                    <td class="col-ai">${item.ai || ''}</td>
+                `;
+
+                keysList.forEach(k => {
+                    let val = item.features && item.features[k] ? item.features[k] : '-';
+                    let bgClass = 'bg-slate-50 text-slate-500';
+                    if (val === 'O') bgClass = 'bg-[#d1fae5] text-emerald-800 font-bold';
+                    else if (val === 'X') bgClass = 'bg-[#cbd5e1] text-slate-700 font-bold';
+
+                    html += `
+                        <td class="col-feature ${bgClass} px-2 py-1.5 text-center">
+                            <select onchange="updateFeatureCell(${actualIndex}, '${k}', this.value)" class="matrix-select bg-transparent font-bold text-center focus:outline-none cursor-pointer text-xs py-1">
+                                <option value="-" ${val === '-' ? 'selected' : ''}>-</option>
+                                <option value="O" ${val === 'O' ? 'selected' : ''}>O</option>
+                                <option value="X" ${val === 'X' ? 'selected' : ''}>X</option>
+                            </select>
+                        </td>
+                    `;
+                });
+
+                html += `
+                    <td class="col-manage">
+                        <div class="flex items-center justify-center space-x-1.5">
+                            <button onclick="openEditModal(${actualIndex})" class="text-blue-600 hover:text-blue-800 p-1" title="수정"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteSpec(${actualIndex})" class="text-rose-500 hover:text-rose-700 p-1" title="삭제"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                `;
+
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.positionTooltip = function(event) {
+            const wrapper = event.currentTarget;
+            const bubble = wrapper.querySelector('.tooltip-bubble');
+            if (!bubble) return;
+            const rect = wrapper.getBoundingClientRect();
+            bubble.style.left = rect.left + 'px';
+            bubble.style.top = (rect.top - bubble.offsetHeight - 8) + 'px';
+            if (rect.top - bubble.offsetHeight - 8 < 10) {
+                bubble.style.top = (rect.bottom + 8) + 'px';
+            }
+        };
+
+        window.updateFeatureCell = function(itemIndex, key, val) {
+            if (!cameraSpecs[itemIndex].features) {
+                cameraSpecs[itemIndex].features = {};
+            }
+            cameraSpecs[itemIndex].features[key] = val;
+            saveToFirebase();
+            logHistory(`기능 [${key}]을(를) '${val}'(으)로 변경`, cameraSpecs[itemIndex].model);
+            renderTable();
+        };
+
+        // 업로드용 엑셀 빈 템플릿 다운로드 기능
+        window.downloadExcelTemplate = function() {
+            let templateRow = {
+                "구분": "예: T (15모델, FW 6종)",
+                "모델명": "예: TNV-C7013RC(X AI)",
+                "REC_SQ 해상도": "예: 128*960",
+                "REC_HQ Max 해상도": "예: 2048*1536",
+                "Ratio": "예: 4:3",
+                "Comment": "예: 특이사항 입력",
+                "AI": "Built-in AI"
+            };
+            keysList.forEach(k => {
+                templateRow[k] = "O 또는 X 또는 -";
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet([templateRow]);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "CameraTemplate");
+            XLSX.writeFile(workbook, "Camera_Specification_Template.xlsx");
+            logHistory("엑셀 템플릿 다운로드", "템플릿 양식");
+        };
+
+        // 엑셀 내보내기 (Export to .xlsx)
+        window.exportToExcel = function() {
+            let exportData = cameraSpecs.map(item => {
+                let row = {
+                    "구분": item.group || "",
+                    "모델명": item.model || "",
+                    "REC_SQ 해상도": item.fw || "",
+                    "REC_HQ Max 해상도": (item.res || "").replace(/<br>/g, "\n"),
+                    "Ratio": item.ratio || "",
+                    "Comment": (item.comment || "").replace(/<br>/g, "\n"),
+                    "AI": item.ai || ""
+                };
+                keysList.forEach(k => {
+                    row[k] = (item.features && item.features[k]) || "-";
+                });
+                return row;
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "CameraSpecs");
+            XLSX.writeFile(workbook, "Camera_Specification_Matrix.xlsx");
+            logHistory("엑셀 파일 다운로드(Export)", "전체 시스템");
+        };
+
+        // 엑셀 불러오기 (Import from .xlsx)
+        window.importFromExcel = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (json.length === 0) {
+                        alert("엑셀 파일에 데이터가 없습니다.");
+                        return;
+                    }
+
+                    let newSpecs = [];
+                    json.forEach(row => {
+                        let features = {};
+                        keysList.forEach(k => {
+                            features[k] = row[k] || "-";
+                        });
+
+                        newSpecs.push({
+                            group: row["구분"] || "",
+                            model: row["모델명"] || "Unnamed Model",
+                            fw: row["REC_SQ 해상도"] || "",
+                            res: (row["REC_HQ Max 해상도"] || "").replace(/\n/g, "<br>"),
+                            ratio: row["Ratio"] || "",
+                            comment: (row["Comment"] || "").replace(/\n/g, "<br>"),
+                            ai: row["AI"] || "Built-in AI",
+                            features: features
+                        });
+                    });
+
+                    if (confirm(`엑셀에서 총 ${newSpecs.length}개의 카메라 스펙을 불러왔습니다. 기존 데이터를 덮어씌우시겠습니까?`)) {
+                        cameraSpecs = newSpecs;
+                        saveToFirebase();
+                        renderTable();
+                        logHistory("엑셀 파일 대량 업로드(Import)", `${newSpecs.length}개 모델`);
+                        alert("엑셀 데이터가 성공적으로 반영되었습니다!");
+                    }
+                } catch(err) {
+                    console.error(err);
+                    alert("엑셀 파일을 파싱하는 중 오류가 발생했습니다.");
+                }
+                event.target.value = "";
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        // 다중 필터 토글 및 체크박스
+        window.toggleFilterDropdown = function() {
+            const dropdown = document.getElementById('filter-dropdown');
+            dropdown.classList.toggle('hidden');
+        };
+
+        window.renderMultiFilterCheckboxes = function() {
+            const container = document.getElementById('multi-filter-checkboxes');
+            container.innerHTML = '';
+            keysList.forEach(k => {
+                let isChecked = multiSelectedFilters.includes(k);
+                let label = document.createElement('label');
+                label.className = 'flex items-center space-x-2 cursor-pointer hover:bg-slate-100 p-1 rounded';
+                label.innerHTML = `
+                    <input type="checkbox" value="${k}" ${isChecked ? 'checked' : ''} onchange="handleMultiFilterChange(this)" class="rounded text-emerald-600 focus:ring-emerald-500">
+                    <span class="text-slate-700">${k}</span>
+                `;
+                container.appendChild(label);
+            });
+        };
+
+        window.handleMultiFilterChange = function(checkbox) {
+            const val = checkbox.value;
+            if (checkbox.checked) {
+                if (!multiSelectedFilters.includes(val)) multiSelectedFilters.push(val);
+            } else {
+                multiSelectedFilters = multiSelectedFilters.filter(item => item !== val);
+            }
+
+            const badge = document.getElementById('filter-badge');
+            if (multiSelectedFilters.length > 0) {
+                badge.innerText = multiSelectedFilters.length;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+            renderTable();
+        };
+
+        window.clearMultiFilters = function() {
+            multiSelectedFilters = [];
+            document.getElementById('filter-badge').classList.add('hidden');
+            renderMultiFilterCheckboxes();
+            renderTable();
+        };
+
+        // 모달 관리
+        window.openAddModal = function() {
+            document.getElementById('modal-title').innerText = "카메라 추가";
+            document.getElementById('edit-index').value = "";
+            document.getElementById('f-group').value = "";
+            document.getElementById('f-model').value = "";
+            document.getElementById('f-fw').value = "";
+            document.getElementById('f-res').value = "";
+            document.getElementById('f-ratio').value = "";
+            document.getElementById('f-comment').value = "";
+            document.getElementById('spec-modal').classList.remove('hidden');
+        };
+
+        window.openEditModal = function(index) {
+            const item = cameraSpecs[index];
+            document.getElementById('modal-title').innerText = "카메라 스펙 수정";
+            document.getElementById('edit-index').value = index;
+            document.getElementById('f-group').value = item.group || "";
+            document.getElementById('f-model').value = item.model || "";
+            document.getElementById('f-fw').value = item.fw || "";
+            document.getElementById('f-res').value = (item.res || "").replace(/<br>/g, "\n");
+            document.getElementById('f-ratio').value = item.ratio || "";
+            document.getElementById('f-comment').value = (item.comment || "").replace(/<br>/g, "\n");
+            document.getElementById('f-ai').value = item.ai || "Built-in AI";
+            
+            document.getElementById('spec-modal').classList.remove('hidden');
+        };
+
+        window.closeModal = function() {
+            document.getElementById('spec-modal').classList.add('hidden');
+        };
+
+        window.handleFormSubmit = function(event) {
+            event.preventDefault();
+            const index = document.getElementById('edit-index').value;
+            const modelName = document.getElementById('f-model').value;
+
+            let existingFeatures = {};
+            if (index !== "" && cameraSpecs[parseInt(index)] && cameraSpecs[parseInt(index)].features) {
+                existingFeatures = cameraSpecs[parseInt(index)].features;
+            } else {
+                keysList.forEach(k => { existingFeatures[k] = '-'; });
+            }
+
+            const newItem = {
+                group: document.getElementById('f-group').value,
+                model: modelName,
+                fw: document.getElementById('f-fw').value,
+                res: document.getElementById('f-res').value.replace(/\n/g, '<br>'),
+                ratio: document.getElementById('f-ratio').value,
+                comment: document.getElementById('f-comment').value.replace(/\n/g, '<br>'),
+                ai: document.getElementById('f-ai').value,
+                features: existingFeatures
+            };
+
+            if (index === "") {
+                cameraSpecs.unshift(newItem);
+                logHistory("카메라 신규 등록", modelName);
+            } else {
+                cameraSpecs[parseInt(index)] = newItem;
+                logHistory("카메라 정보 수정", modelName);
+            }
+
+            saveToFirebase();
+            renderTable();
+            closeModal();
+        };
+
+        window.deleteSpec = function(index) {
+            const password = prompt('카메라 스펙을 삭제하려면 관리자 비밀번호를 입력하세요:');
+            if (password === null) return;
+            if (password === '1234') {
+                if (confirm('정말 이 카메라 스펙을 삭제하시겠습니까?')) {
+                    const deletedModel = cameraSpecs[index].model;
+                    cameraSpecs.splice(index, 1);
+                    saveToFirebase();
+                    logHistory("카메라 삭제", deletedModel);
+                    renderTable();
+                }
+            } else {
+                alert('비밀번호가 틀렸습니다.');
+            }
+        };
+
+        // 컬럼 관리 (드래그 앤 드롭 순서 변경 및 추가/삭제)
+        window.openColumnManagerModal = function() {
+            renderColumnList();
+            document.getElementById('column-manager-modal').classList.remove('hidden');
+        };
+
+        window.closeColumnManagerModal = function() {
+            document.getElementById('column-manager-modal').classList.add('hidden');
+        };
+
+        window.renderColumnList = function() {
+            const listContainer = document.getElementById('column-list-container');
+            listContainer.innerHTML = '';
+            keysList.forEach((colName, idx) => {
+                let div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-white p-2.5 rounded-lg border text-xs draggable-item shadow-sm';
+                div.draggable = true;
+                div.dataset.index = idx;
+                
+                div.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-grip-vertical text-slate-400 cursor-grab"></i>
+                        <span class="font-semibold text-slate-800">${colName}</span>
+                    </div>
+                    <button onclick="deleteColumn(${idx})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i> 삭제</button>
+                `;
+
+                div.addEventListener('dragstart', (e) => {
+                    draggedColumnIndex = idx;
+                    setTimeout(() => div.classList.add('dragging'), 0);
+                });
+
+                div.addEventListener('dragend', (e) => {
+                    div.classList.remove('dragging');
+                    draggedColumnIndex = null;
+                });
+
+                div.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                });
+
+                div.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    if (draggedColumnIndex === null || draggedColumnIndex === idx) return;
+
+                    const movedItem = keysList.splice(draggedColumnIndex, 1)[0];
+                    keysList.splice(idx, 0, movedItem);
+
+                    saveColumnsToFirebase();
+                    renderColumnList();
+                    renderTableHead();
+                    renderMultiFilterCheckboxes();
+                });
+
+                listContainer.appendChild(div);
+            });
+        };
+
+        window.addNewColumn = function() {
+            const input = document.getElementById('new-column-name');
+            const val = input.value.trim();
+            if(!val) {
+                alert('기능 이름을 입력하세요.');
+                return;
+            }
+            if(keysList.includes(val)) {
+                alert('이미 존재하는 기능 항목입니다.');
+                return;
+            }
+            keysList.push(val);
+            input.value = '';
+            saveColumnsToFirebase();
+            renderColumnList();
+            renderTableHead();
+            renderMultiFilterCheckboxes();
+            logHistory(`컬럼 [${val}] 추가`, "시스템");
+        };
+
+        window.deleteColumn = function(idx) {
+            if(keysList.length <= 1) {
+                alert('최소 1개 이상의 컬럼이 존재해야 합니다.');
+                return;
+            }
+            const colName = keysList[idx];
+            if(confirm(`'${colName}' 항목을 삭제하시겠습니까?`)) {
+                keysList.splice(idx, 1);
+                saveColumnsToFirebase();
+                renderColumnList();
+                renderTableHead();
+                renderMultiFilterCheckboxes();
+                logHistory(`컬럼 [${colName}] 삭제`, "시스템");
+            }
+        };
+
+        // 변경 이력 모달
+        window.openHistoryModal = function() {
+            const container = document.getElementById('history-list-container');
+            container.innerHTML = '';
+            if(historyLogs.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 py-4">기록된 변경 이력이 없습니다.</div>`;
+            } else {
+                historyLogs.forEach(log => {
+                    let itemDiv = document.createElement('div');
+                    itemDiv.className = 'py-1.5 flex items-center justify-between';
+                    itemDiv.innerHTML = `
+                        <div>
+                            <span class="font-bold text-slate-800">[${log.action}]</span> 
+                            <span class="text-slate-600">${log.model}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 text-right">
+                            <div>${log.user}</div>
+                            <div>${log.time}</div>
+                        </div>
+                    `;
+                    container.appendChild(itemDiv);
+                });
+            }
+            document.getElementById('history-modal').classList.remove('hidden');
+        };
+
+        window.closeHistoryModal = function() {
+            document.getElementById('history-modal').classList.add('hidden');
+        };
+    </script>
+</body>
+</html>

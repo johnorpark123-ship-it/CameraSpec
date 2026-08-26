@@ -52,7 +52,7 @@
         .col-feature { width: 110px; min-width: 110px; max-width: 110px; }
         .col-manage { width: 110px; min-width: 110px; max-width: 110px; }
 
-        /* 말풍선 툴팁 스타일 (상위 컨테이너 구조 개선 및 overflow 제약 극복) */
+        /* 말풍선 툴팁 스타일 */
         .tooltip-wrapper {
             position: relative;
             display: inline-block;
@@ -130,7 +130,7 @@
                         <span>카메라 지원 스펙 메트릭스</span>
                         <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium hidden sm:inline-block">실시간 클라우드 연동</span>
                     </h1>
-                    <p class="text-xs text-slate-500">엑셀 템플릿, 내보내기/가져오기, 통합 컬럼 관리, 정렬 및 변경이력 탑재</p>
+                    <p class="text-xs text-slate-500">데이터 실시간 공유 & 개인별 독립 검색·정렬·필터 지원</p>
                 </div>
             </div>
             <div class="flex items-center space-x-2 flex-wrap">
@@ -167,7 +167,7 @@
 
     <main class="flex-1 max-w-full w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col space-y-4 overflow-hidden">
         
-        <!-- Search and Multi-Filter Toolbar -->
+        <!-- Search and Multi-Filter Toolbar (개인별 독립 적용) -->
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-4 items-center justify-between shrink-0">
             <div class="w-full lg:w-[420px] relative">
                 <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -325,14 +325,13 @@
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
-            	apiKey: "AIzaSyBANvp_Se4n59yHcT9JvXyE-KN7cRIz_Go",
-  		authDomain: "sd-asset-manager.firebaseapp.com",
-  		databaseURL: "https://sd-asset-manager-default-rtdb.firebaseio.com",
-  		projectId: "sd-asset-manager",
- 		storageBucket: "sd-asset-manager.firebasestorage.app",
-  		messagingSenderId: "568250820087",
-  		appId: "1:568250820087:web:8f6dd508ec9421b1673af2",
-  		measurementId: "G-W8WEJ04501"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            databaseURL: "https://sd-asset-manager-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -341,15 +340,16 @@
         let cameraSpecs = [];
         let historyLogs = [];
         
-        // 컬럼 정의 (모든 기능 항목을 통합 "지원 기능" 헤더 아래로 구성)
         let keysList = [
             "BLC", "HLC", "WDR", "Motion", "Shock", "Tampering", "Defocus", 
             "Fog", "Audio", "Sound classification", "Face", "Person", "Vehicle", "License plate", "IVA"
         ];
 
         let draggedColumnIndex = null;
+        
+        // 검색, 필터, 정렬 상태값은 클라우드 공유 대상에서 제외하고 각 브라우저의 독립 메모리로 분리
         let currentSortColumn = null;
-        let sortDirection = 'asc'; // 'asc' or 'desc'
+        let sortDirection = 'asc';
         let multiSelectedFilters = [];
 
         window.onload = function() {
@@ -424,7 +424,6 @@
             set(ref(db, 'camera_spec_history_v3'), historyLogs).catch(err => console.error(err));
         }
 
-        // 헤더 렌더링 (통합 "지원 기능" 2단 헤더 구성 + 정렬 버튼 포함)
         window.renderTableHead = function() {
             updateTableWidths();
             const thead = document.getElementById('spec-table-head');
@@ -454,7 +453,6 @@
             });
         };
 
-        // 컬럼별 정렬 기능 (대소문자 무시 지원)
         window.sortData = function(key) {
             if (currentSortColumn === key) {
                 sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
@@ -484,14 +482,14 @@
         window.renderTable = function() {
             renderTableHead();
             const tbody = document.getElementById('spec-table-body');
-            const rawSearchQuery = document.getElementById('search-input').value.trim();
+            const searchInputEl = document.getElementById('search-input');
+            const rawSearchQuery = searchInputEl ? searchInputEl.value.trim() : '';
             const searchQuery = rawSearchQuery.toLowerCase();
             tbody.innerHTML = '';
 
             const filtered = cameraSpecs.filter(item => {
                 const text = `${item.group} ${item.model} ${item.fw} ${item.comment} ${item.res}`.toLowerCase();
                 
-                // 1. 일반 검색바 필터 (대소문자 무시 및 기능명 부분 일치 지원)
                 let matchesSearch = true;
                 if (searchQuery) {
                     const matchedCol = keysList.find(k => k.toLowerCase().includes(searchQuery));
@@ -502,7 +500,6 @@
                     }
                 }
 
-                // 2. 다중 기능 체크박스 필터 (선택된 모든 기능이 'O'여야 함)
                 let matchesMultiFilter = true;
                 if (multiSelectedFilters.length > 0) {
                     matchesMultiFilter = multiSelectedFilters.every(fKey => {
@@ -591,7 +588,6 @@
             renderTable();
         };
 
-        // 업로드용 엑셀 빈 템플릿 다운로드 기능
         window.downloadExcelTemplate = function() {
             let templateRow = {
                 "구분": "예: T (15모델, FW 6종)",
@@ -613,7 +609,6 @@
             logHistory("엑셀 템플릿 다운로드", "템플릿 양식");
         };
 
-        // 엑셀 내보내기 (Export to .xlsx)
         window.exportToExcel = function() {
             let exportData = cameraSpecs.map(item => {
                 let row = {
@@ -638,7 +633,6 @@
             logHistory("엑셀 파일 다운로드(Export)", "전체 시스템");
         };
 
-        // 엑셀 불러오기 (Import from .xlsx)
         window.importFromExcel = function(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -692,7 +686,6 @@
             reader.readAsArrayBuffer(file);
         };
 
-        // 다중 필터 토글 및 체크박스
         window.toggleFilterDropdown = function() {
             const dropdown = document.getElementById('filter-dropdown');
             dropdown.classList.toggle('hidden');
@@ -738,7 +731,6 @@
             renderTable();
         };
 
-        // 모달 관리
         window.openAddModal = function() {
             document.getElementById('modal-title').innerText = "카메라 추가";
             document.getElementById('edit-index').value = "";
@@ -822,7 +814,6 @@
             }
         };
 
-        // 컬럼 관리 (드래그 앤 드롭 순서 변경 및 추가/삭제)
         window.openColumnManagerModal = function() {
             renderColumnList();
             document.getElementById('column-manager-modal').classList.remove('hidden');
@@ -916,7 +907,6 @@
             }
         };
 
-        // 변경 이력 모달
         window.openHistoryModal = function() {
             const container = document.getElementById('history-list-container');
             container.innerHTML = '';

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>카메라 지원 스펙 매트릭스</title>
+    <title>카메라 지원 스펙 메트릭스</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome for Icons -->
@@ -282,7 +282,7 @@
         </div>
     </div>
 
-    <!-- Column Manager Modal with Drag & Drop Reordering -->
+    <!-- Column Manager Modal with Drag & Drop Reordering & Edit -->
     <div id="column-manager-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-100">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -290,7 +290,7 @@
                 <button onclick="closeColumnManagerModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
             <div class="space-y-3">
-                <p class="text-xs text-slate-500">항목을 드래그하여 순서를 바꾸거나 새로운 기능 컬럼을 추가할 수 있습니다.</p>
+                <p class="text-xs text-slate-500">항목을 드래그하여 순서를 바꾸거나 이름을 수정, 새로운 기능 컬럼을 추가할 수 있습니다.</p>
                 <div class="flex space-x-2">
                     <input type="text" id="new-column-name" placeholder="새 기능 이름 (예: HDR 등)" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     <button onclick="addNewColumn()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition">추가</button>
@@ -843,7 +843,10 @@
                         <i class="fa-solid fa-grip-vertical text-slate-400 cursor-grab"></i>
                         <span class="font-semibold text-slate-800">${colName}</span>
                     </div>
-                    <button onclick="deleteColumn(${idx})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i> 삭제</button>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="editColumn(${idx})" class="text-blue-600 hover:text-blue-800 p-1" title="컬럼명 수정"><i class="fa-solid fa-pen"></i> 수정</button>
+                        <button onclick="deleteColumn(${idx})" class="text-rose-500 hover:text-rose-700 p-1" title="컬럼 삭제"><i class="fa-solid fa-trash"></i> 삭제</button>
+                    </div>
                 `;
 
                 div.addEventListener('dragstart', (e) => {
@@ -895,6 +898,41 @@
             renderTableHead();
             renderMultiFilterCheckboxes();
             logHistory(`컬럼 [${val}] 추가`, "시스템");
+        };
+
+        // 새로 추가된 컬럼 수정 함수
+        window.editColumn = function(idx) {
+            const oldName = keysList[idx];
+            const newName = prompt(`'${oldName}' 컬럼의 새로운 이름을 입력하세요:`, oldName);
+            if (newName === null) return;
+            const trimmed = newName.trim();
+            if (!trimmed) {
+                alert('유효한 이름을 입력해주세요.');
+                return;
+            }
+            if (keysList.includes(trimmed) && trimmed !== oldName) {
+                alert('이미 존재하는 기능 항목 이름입니다.');
+                return;
+            }
+
+            // 기존 데이터 객체들의 features 키값도 함께 마이그레이션
+            cameraSpecs.forEach(item => {
+                if (item.features && item.features[oldName] !== undefined) {
+                    item.features[trimmed] = item.features[oldName];
+                    if (oldName !== trimmed) {
+                        delete item.features[oldName];
+                    }
+                }
+            });
+
+            keysList[idx] = trimmed;
+            saveColumnsToFirebase();
+            saveToFirebase();
+            renderColumnList();
+            renderTableHead();
+            renderMultiFilterCheckboxes();
+            renderTable();
+            logHistory(`컬럼명 변경 [${oldName} ➔ ${trimmed}]`, "시스템");
         };
 
         window.deleteColumn = function(idx) {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>카메라 지원 스펙 메트릭스</title>
+    <title>카메라 지원 스펙 매트릭스</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome for Icons -->
@@ -34,11 +34,21 @@
             background-color: #f8fafc;
             font-weight: 600;
             color: #334155;
-            white-space: normal; /* 컬럼명은 말줄임 없이 전체 표시 */
+            white-space: normal;
             word-break: break-word;
         }
-        .spec-table tr:hover td {
-            background-color: #f1f5f9;
+
+        /* 💡 부드럽고 직관적인 행(Row) 하이라이트 포커싱 효과 */
+        .spec-table tbody tr {
+            transition: background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .spec-table tbody tr:hover td {
+            background-color: #ecfdf5 !important; /* 연한 에메랄드빛 하이라이트 */
+            border-color: #a7f3d0;
+            color: #065f46;
+        }
+        .spec-table tbody tr:hover td.col-model {
+            font-weight: 700;
         }
 
         /* 각 컬럼별 고정 너비 할당 */
@@ -900,7 +910,6 @@
             logHistory(`컬럼 [${val}] 추가`, "시스템");
         };
 
-        // 새로 추가된 컬럼 수정 함수
         window.editColumn = function(idx) {
             const oldName = keysList[idx];
             const newName = prompt(`'${oldName}' 컬럼의 새로운 이름을 입력하세요:`, oldName);
@@ -915,7 +924,6 @@
                 return;
             }
 
-            // 기존 데이터 객체들의 features 키값도 함께 마이그레이션
             cameraSpecs.forEach(item => {
                 if (item.features && item.features[oldName] !== undefined) {
                     item.features[trimmed] = item.features[oldName];

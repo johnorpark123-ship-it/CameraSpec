@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>카메라 지원 스펙 매트릭스</title>
+    <title>카메라 지원 스펙 메트릭스</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome for Icons -->
@@ -38,12 +38,12 @@
             word-break: break-word;
         }
 
-        /* 💡 부드럽고 직관적인 행(Row) 하이라이트 포커싱 효과 */
+        /* 💡 부드럽고 직관적인 행(Row) 하이라이트 포커싱 효과 (연한 인디고 톤) */
         .spec-table tbody tr {
             transition: background-color 0.15s ease, box-shadow 0.15s ease;
         }
         .spec-table tbody tr:hover td {
-            background-color: #e0e7ff !important; /* 연한 인디고/블루빛 하이라이트 */
+            background-color: #e0e7ff !important;
             border-color: #a7d2fe;
             color: #3730a3;
         }
@@ -183,23 +183,30 @@
         
         <!-- Search and Multi-Filter Toolbar (개인별 독립 적용) -->
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-4 items-center justify-between shrink-0">
-            <div class="w-full lg:w-[420px] relative">
-                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                </span>
-                <input type="text" id="search-input" oninput="renderTable()" placeholder="모델명, 코멘트 검색 또는 기능명 입력 시 O 항목 필터..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+            <div class="w-full lg:w-[480px] flex items-center space-x-2">
+                <div class="relative flex-1">
+                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </span>
+                    <input type="text" id="search-input" oninput="renderTable()" placeholder="모델명, 코멘트 검색 또는 기능명 입력 시 O 항목 필터..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+                </div>
+                <!-- 검색 및 필터 전체 초기화 버튼 -->
+                <button onclick="resetAllFilters()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 flex items-center space-x-1.5 transition shrink-0" title="검색어 및 다중 필터 초기화">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>초기화</span>
+                </button>
             </div>
             
             <div class="flex items-center space-x-4 w-full lg:w-auto justify-between lg:justify-end flex-wrap gap-2">
-                <!-- Multi-Filter Dropdown Trigger -->
-                <div class="relative">
-                    <button onclick="toggleFilterDropdown()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 flex items-center space-x-2 transition">
+                <!-- Multi-Filter Dropdown Container -->
+                <div class="relative" id="filter-container">
+                    <button onclick="toggleFilterDropdown(event)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 flex items-center space-x-2 transition">
                         <i class="fa-solid fa-filter text-emerald-600"></i>
                         <span>다중 기능 필터</span>
                         <span id="filter-badge" class="bg-emerald-600 text-white rounded-full px-1.5 py-0.2 text-[10px] hidden">0</span>
                     </button>
                     <!-- Filter Dropdown Menu -->
-                    <div id="filter-dropdown" class="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-40 hidden space-y-3">
+                    <div id="filter-dropdown" class="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-40 hidden space-y-3" onclick="event.stopPropagation()">
                         <div class="flex items-center justify-between border-b pb-2">
                             <span class="text-xs font-bold text-slate-800">동시 지원(O) 요구 기능 선택</span>
                             <button onclick="clearMultiFilters()" class="text-[11px] text-rose-500 hover:underline">초기화</button>
@@ -403,6 +410,15 @@
             bodyContainer.addEventListener('scroll', () => {
                 headerContainer.scrollLeft = bodyContainer.scrollLeft;
             });
+
+            // 💡 화면 바깥쪽(다른 곳) 클릭 시 다중 기능 필터 팝업 닫기 이벤트 리스너 추가
+            document.addEventListener('click', (event) => {
+                const filterContainer = document.getElementById('filter-container');
+                const dropdown = document.getElementById('filter-dropdown');
+                if (filterContainer && dropdown && !filterContainer.contains(event.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
         };
 
         function updateTableWidths() {
@@ -604,6 +620,16 @@
             renderTable();
         };
 
+        window.resetAllFilters = function() {
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = '';
+            multiSelectedFilters = [];
+            const badge = document.getElementById('filter-badge');
+            if (badge) badge.classList.add('hidden');
+            renderMultiFilterCheckboxes();
+            renderTable();
+        };
+
         window.downloadExcelTemplate = function() {
             let templateRow = {
                 "구분": "예: T (15모델, FW 6종)",
@@ -702,7 +728,8 @@
             reader.readAsArrayBuffer(file);
         };
 
-        window.toggleFilterDropdown = function() {
+        window.toggleFilterDropdown = function(event) {
+            if (event) event.stopPropagation();
             const dropdown = document.getElementById('filter-dropdown');
             dropdown.classList.toggle('hidden');
         };

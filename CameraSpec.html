@@ -38,22 +38,39 @@
             word-break: break-word;
         }
 
-        /* 💡 부드럽고 직관적인 행(Row) 하이라이트 포커싱 효과 (연한 인디고 톤) */
-        .spec-table tbody tr {
-            transition: background-color 0.15s ease, box-shadow 0.15s ease;
-        }
-        .spec-table tbody tr:hover td {
+        /* 1. 가로/세로 하이라이트 및 마우스 위치 셀 강조 스타일 */
+        .crosshair-highlight {
             background-color: #e0e7ff !important;
-            border-color: #a7d2fe;
+            border-color: #a7d2fe !important;
+        }
+        .crosshair-cell {
+            background-color: #c7d2fe !important;
+            font-weight: 700;
             color: #3730a3;
         }
-        .spec-table tbody tr:hover td.col-model {
-            font-weight: 700;
+
+        /* 2. 구분 및 모델명 컬럼 틀 고정 (Sticky) */
+        .col-group { 
+            width: 120px; min-width: 120px; max-width: 120px;
+            position: sticky; left: 0; 
+            z-index: 10; 
+            background-color: #f8fafc; 
+        }
+        .col-model { 
+            width: 160px; min-width: 160px; max-width: 160px;
+            position: sticky; left: 120px; 
+            z-index: 10; 
+            background-color: #ffffff;
+            box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1); 
+        }
+
+        #header-table th.col-group, 
+        #header-table th.col-model {
+            z-index: 20;
+            background-color: #f8fafc;
         }
 
         /* 각 컬럼별 고정 너비 할당 */
-        .col-group { width: 120px; min-width: 120px; max-width: 120px; }
-        .col-model { width: 160px; min-width: 160px; max-width: 160px; }
         .col-sq { width: 110px; min-width: 110px; max-width: 110px; }
         .col-hq { width: 120px; min-width: 120px; max-width: 120px; }
         .col-ratio { width: 70px; min-width: 70px; max-width: 70px; }
@@ -181,7 +198,7 @@
 
     <main class="flex-1 max-w-full w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col space-y-4 overflow-hidden">
         
-        <!-- Search and Multi-Filter Toolbar (개인별 독립 적용) -->
+        <!-- Search and Multi-Filter Toolbar -->
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-4 items-center justify-between shrink-0">
             <div class="w-full lg:w-[480px] flex items-center space-x-2">
                 <div class="relative flex-1">
@@ -411,7 +428,7 @@
                 headerContainer.scrollLeft = bodyContainer.scrollLeft;
             });
 
-            // 💡 화면 바깥쪽(다른 곳) 클릭 시 다중 기능 필터 팝업 닫기 이벤트 리스너 추가
+            // 화면 바깥쪽 클릭 시 다중 기능 필터 팝업 닫기
             document.addEventListener('click', (event) => {
                 const filterContainer = document.getElementById('filter-container');
                 const dropdown = document.getElementById('filter-dropdown');
@@ -419,6 +436,47 @@
                     dropdown.classList.add('hidden');
                 }
             });
+
+            // 가로 세로 하이라이트(Crosshair) 이벤트 로직 추가
+            const tbody = document.getElementById('spec-table-body');
+            
+            if (tbody) {
+                tbody.addEventListener('mouseover', function(e) {
+                    const targetCell = e.target.closest('td');
+                    if (!targetCell) return;
+                    
+                    const targetRow = targetCell.parentElement;
+                    const cellIndex = targetCell.cellIndex;
+
+                    // 이전 하이라이트 효과 모두 초기화
+                    document.querySelectorAll('.crosshair-highlight, .crosshair-cell').forEach(el => {
+                        el.classList.remove('crosshair-highlight', 'crosshair-cell');
+                    });
+
+                    // 1. 마우스가 위치한 동일한 가로(Row) 하이라이트
+                    Array.from(targetRow.children).forEach(cell => {
+                        cell.classList.add('crosshair-highlight');
+                    });
+
+                    // 2. 마우스가 위치한 동일한 세로(Column) 하이라이트
+                    const allRows = targetRow.parentElement.children;
+                    Array.from(allRows).forEach(row => {
+                        if (row.children[cellIndex]) {
+                            row.children[cellIndex].classList.add('crosshair-highlight');
+                        }
+                    });
+
+                    // 3. 현재 마우스가 위치한 셀은 더 진하게 표시
+                    targetCell.classList.add('crosshair-cell');
+                });
+
+                // 테이블 영역을 벗어나면 하이라이트 해제
+                tbody.addEventListener('mouseleave', function() {
+                    document.querySelectorAll('.crosshair-highlight, .crosshair-cell').forEach(el => {
+                        el.classList.remove('crosshair-highlight', 'crosshair-cell');
+                    });
+                });
+            }
         };
 
         function updateTableWidths() {
@@ -553,7 +611,7 @@
                 let commentText = (item.comment || '').replace(/<br>/g, '\n');
 
                 let html = `
-                    <td class="col-group font-medium bg-slate-50/50">${item.group || ''}</td>
+                    <td class="col-group font-medium">${item.group || ''}</td>
                     <td class="col-model font-bold text-slate-900">${item.model || ''}</td>
                     <td class="col-sq">${item.fw || ''}</td>
                     <td class="col-hq text-xs leading-tight">${item.res || ''}</td>

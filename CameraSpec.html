@@ -601,7 +601,11 @@
             filtered.forEach((item) => {
                 let actualIndex = cameraSpecs.indexOf(item);
                 let tr = document.createElement('tr');
-                let commentText = (item.comment || '').replace(/<br>/g, '\n');
+                
+                // 코멘트 줄바꿈 처리 로직 수정
+                let fullComment = (item.comment || '').replace(/<br>/g, '\n');
+                let commentLines = fullComment.split('\n');
+                let shortComment = commentLines[0] + (commentLines.length > 1 ? ' ...' : '');
 
                 let html = `
                     <td class="col-group font-medium">${item.group || ''}</td>
@@ -621,8 +625,8 @@
                     <td class="col-ratio">${item.ratio || ''}</td>
                     <td class="col-comment text-left text-xs">
                         <div class="tooltip-wrapper" onmouseenter="positionTooltip(event)">
-                            <span class="tooltip-content">${commentText || '-'}</span>
-                            <div class="tooltip-bubble">${commentText || '코멘트 없음'}</div>
+                            <span class="tooltip-content">${shortComment || '-'}</span>
+                            <div class="tooltip-bubble">${fullComment || '코멘트 없음'}</div>
                         </div>
                     </td>
                     <td class="col-ai">${item.ai || ''}</td>
